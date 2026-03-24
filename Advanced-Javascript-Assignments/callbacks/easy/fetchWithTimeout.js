@@ -10,7 +10,34 @@
 
 
 function fetchWithTimeout(url, ms, callback) {
+    let finished = false; // flag to track if callback was already called
 
+    // Start the timer
+    const timer = setTimeout(function()
+     {
+        if (!finished) {
+            finished = true;
+            callback(new Error("Request Timed Out")); // time ran out first
+        }
+    }, ms);
+
+    // Start the fetch
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (!finished) {
+                finished = true;
+                clearTimeout(timer);      // cancel the timer, no longer needed
+                callback(null, data);     // fetch won the race
+            }
+        })
+        .catch(err => {
+            if (!finished) {
+                finished = true;
+                clearTimeout(timer);      // cancel the timer
+                callback(err);            // fetch itself failed (network error etc.)
+            }
+        });
 }
 
 module.exports = fetchWithTimeout;
